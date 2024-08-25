@@ -16,7 +16,7 @@ const PostList = () => {
         if (!hasMore) return;
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/posts?page=${page}&limit=10${selectedCategory !== 'All articles' ? `&category=${selectedCategory}` : ''}`);
+            const response = await axios.get(`https://blog-ai-assh.onrender.com/api/posts?page=${page}&limit=10${selectedCategory !== 'All articles' ? `&category=${selectedCategory}` : ''}`);
             if (page === 1) {
                 setPosts(response.data.posts);
             } else {
@@ -39,7 +39,7 @@ const PostList = () => {
         const fetchCategories = async () => {
             setCategoriesLoading(true);
             try {
-                const response = await axios.get('http://localhost:5000/api/posts/categories');
+                const response = await axios.get('https://blog-ai-assh.onrender.com/api/posts/categories');
                 const uniqueCategories = ['All articles', ...new Set(response.data)];
                 setCategories(uniqueCategories);
             } catch (err) {

@@ -12,7 +12,7 @@ const PostDetail = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
-                const response = await axios.get(`http://localhost:5000/api/posts/${id}`);
+                const response = await axios.get(`https://blog-ai-assh.onrender.com/api/posts/${id}`);
                 setPost(response.data);
             } catch (err) {
                 setError('Error fetching post. Please try again later.');
@@ -25,7 +25,7 @@ const PostDetail = () => {
 
     const handleDelete = async () => {
         try {
-            await axios.delete(`http://localhost:5000/api/posts/${id}`);
+            await axios.delete(`https://blog-ai-assh.onrender.com/api/posts/${id}`);
             navigate('/');
         } catch (err) {
             setError('Error deleting post. Please try again later.');

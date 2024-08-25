@@ -45,7 +45,7 @@ const PostForm = () => {
             if (id) {
                 setLoading(true);
                 try {
-                    const response = await axios.get(`http://localhost:5000/api/posts/${id}`);
+                    const response = await axios.get(`https://blog-ai-assh.onrender.com/api/posts/${id}`);
                     setTitle(response.data.title);
                     setContent(response.data.content);
                     setCategory(response.data.category);
@@ -79,11 +79,11 @@ const PostForm = () => {
 
         try {
             if (id) {
-                await axios.put(`http://localhost:5000/api/posts/${id}`, formData, {
+                await axios.put(`https://blog-ai-assh.onrender.com/api/posts/${id}`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             } else {
-                await axios.post('http://localhost:5000/api/posts', formData, {
+                await axios.post('https://blog-ai-assh.onrender.com/api/posts', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             }
