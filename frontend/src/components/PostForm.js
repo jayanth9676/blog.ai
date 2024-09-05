@@ -1,106 +1,121 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import AuthorForm from './AuthorForm';
+import config from '../config';
+import './PostForm.css';
 
 const PostForm = () => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
     const [author, setAuthor] = useState({ name: '', email: '', bio: '' });
-    const [error, setError] = useState(null);
+    const [subTopics, setSubTopics] = useState(['']);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
     const { id } = useParams();
-    const [subTopics, setSubTopics] = useState([]);
-    const [image, setImage] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
-
-    const addSubTopic = () => {
-        setSubTopics([...subTopics, '']);
-    };
-
-    const updateSubTopic = (index, value) => {
-        const updatedSubTopics = [...subTopics];
-        updatedSubTopics[index] = value;
-        setSubTopics(updatedSubTopics);
-    };
-
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImage(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     useEffect(() => {
-        const fetchPost = async () => {
-            if (id) {
-                setLoading(true);
-                try {
-                    const response = await axios.get(`https://blog-ai-assh.onrender.com/api/posts/${id}`);
-                    setTitle(response.data.title);
-                    setContent(response.data.content);
-                    setCategory(response.data.category);
-                    setAuthor(response.data.author);
-                    setSubTopics(response.data.subTopics || []);
-                    setImagePreview(response.data.imageUrl);
-                } catch (err) {
-                    setError('Error fetching post. Please try again later.');
-                } finally {
-                    setLoading(false);
-                }
+        const fetchCategories = async () => {
+            try {
+                const response = await axios.get(`${config.API_BASE_URL}/posts/categories`);
+                setCategories(response.data);
+            } catch (err) {
+                console.error('Error fetching categories:', err);
+                setError('Failed to fetch categories. Please try again.');
             }
         };
-        fetchPost();
+
+        fetchCategories();
+
+        if (id) {
+            const fetchPost = async () => {
+                try {
+                    const response = await axios.get(`${config.API_BASE_URL}/posts/${id}`);
+                    const post = response.data;
+                    setTitle(post.title);
+                    setContent(post.content);
+                    setCategory(post.category);
+                    setImageUrl(post.imageUrl);
+                    setAuthor(post.author || { name: '', email: '', bio: '' });
+                    setSubTopics(post.subTopics || ['']);
+                } catch (err) {
+                    console.error('Error fetching post:', err);
+                    setError('Failed to fetch post. Please try again.');
+                }
+            };
+
+            fetchPost();
+        }
     }, [id]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError(null);
-
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('content', content);
-        formData.append('category', category);
-        formData.append('author', JSON.stringify(author));
-        formData.append('subTopics', JSON.stringify(subTopics));
-        if (image) {
-            formData.append('image', image);
-        }
+        setError('');
 
         try {
+            const postData = { 
+                title, 
+                content, 
+                category, 
+                imageUrl, 
+                author: JSON.stringify(author), // Stringify the author object
+                subTopics: JSON.stringify(subTopics.filter(topic => topic.trim() !== '')) // Stringify the subTopics array
+            };
+
+            let response;
             if (id) {
-                await axios.put(`https://blog-ai-assh.onrender.com/api/posts/${id}`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                response = await axios.put(`${config.API_BASE_URL}/posts/${id}`, postData);
             } else {
-                await axios.post('https://blog-ai-assh.onrender.com/api/posts', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                response = await axios.post(`${config.API_BASE_URL}/posts`, postData);
             }
-            navigate('/');
+
+            if (response.status === 200 || response.status === 201) {
+                navigate('/');
+            } else {
+                throw new Error('Unexpected response status');
+            }
         } catch (err) {
-            setError('Error saving post. Please try again later.');
+            console.error('Error saving post:', err);
+            if (err.response && err.response.data && err.response.data.message) {
+                setError(`Error: ${err.response.data.message}`);
+            } else {
+                setError('Failed to save post. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) return <div className="loading">Loading...</div>;
-    if (error) return <div className="error">{error}</div>;
+    const handleAuthorChange = (e) => {
+        const { name, value } = e.target;
+        setAuthor(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubTopicChange = (index, value) => {
+        const newSubTopics = [...subTopics];
+        newSubTopics[index] = value;
+        setSubTopics(newSubTopics);
+    };
+
+    const addSubTopic = () => {
+        setSubTopics([...subTopics, '']);
+    };
+
+    const removeSubTopic = (index) => {
+        const newSubTopics = subTopics.filter((_, i) => i !== index);
+        setSubTopics(newSubTopics);
+    };
 
     return (
         <div className="post-form-container">
-            <h2 className="form-title">{id ? 'Edit Post' : 'Create New Post'}</h2>
+            <h1 className="form-title">{id ? 'Edit Post' : 'Create New Post'}</h1>
+            {error && <div className="error-message">{error}</div>}
             <form onSubmit={handleSubmit} className="post-form">
                 <div className="form-group">
                     <label htmlFor="title">Title</label>
@@ -110,86 +125,99 @@ const PostForm = () => {
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         required
-                        className="form-input"
                     />
                 </div>
                 <div className="form-group">
                     <label htmlFor="category">Category</label>
-                    <input
-                        type="text"
+                    <select
                         id="category"
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         required
-                        className="form-input"
+                    >
+                        <option value="">Select a category</option>
+                        {categories.map((cat) => (
+                            <option key={cat} value={cat}>
+                                {cat}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="form-group">
+                    <label htmlFor="imageUrl">Image URL</label>
+                    <input
+                        type="url"
+                        id="imageUrl"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
                     />
                 </div>
-                <div className="form-group scrollable-editor">
+                <div className="form-group">
                     <label htmlFor="content">Content</label>
                     <ReactQuill
                         value={content}
                         onChange={setContent}
                         modules={{
                             toolbar: [
-                                [{ 'header': [1, 2, 3, false] }],
+                                [{ 'header': [1, 2, false] }],
                                 ['bold', 'italic', 'underline', 'strike', 'blockquote'],
                                 [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}],
                                 ['link', 'image'],
                                 ['clean']
                             ],
                         }}
-                        className="form-quill"
                     />
                 </div>
                 <div className="form-group">
-                    <label htmlFor="image">Post Image</label>
+                    <label>Author Information</label>
                     <input
-                        type="file"
-                        id="image"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="form-input"
+                        type="text"
+                        name="name"
+                        value={author.name}
+                        onChange={handleAuthorChange}
+                        placeholder="Author Name"
+                        required
                     />
-                    {imagePreview && (
-                        <img src={imagePreview} alt="Preview" className="image-preview" />
-                    )}
+                    <input
+                        type="email"
+                        name="email"
+                        value={author.email}
+                        onChange={handleAuthorChange}
+                        placeholder="Author Email"
+                        required
+                    />
+                    <textarea
+                        name="bio"
+                        value={author.bio}
+                        onChange={handleAuthorChange}
+                        placeholder="Author Bio"
+                    ></textarea>
                 </div>
                 <div className="form-group">
-                    <label>Sub-topics</label>
+                    <label>Sub Topics</label>
                     {subTopics.map((topic, index) => (
-                        <input
-                            key={index}
-                            type="text"
-                            value={topic}
-                            onChange={(e) => updateSubTopic(index, e.target.value)}
-                            placeholder={`Sub-topic ${index + 1}`}
-                            className="form-input"
-                        />
+                        <div key={index} className="sub-topic-input">
+                            <input
+                                type="text"
+                                value={topic}
+                                onChange={(e) => handleSubTopicChange(index, e.target.value)}
+                                placeholder={`Sub Topic ${index + 1}`}
+                            />
+                            {index > 0 && (
+                                <button type="button" onClick={() => removeSubTopic(index)} className="remove-sub-topic">
+                                    Remove
+                                </button>
+                            )}
+                        </div>
                     ))}
-                    <button type="button" onClick={addSubTopic} className="btn btn-secondary">
-                        Add Sub-topic
+                    <button type="button" onClick={addSubTopic} className="add-sub-topic">
+                        Add Sub Topic
                     </button>
                 </div>
-                <AuthorForm
-                    author={author}
-                    onUpdate={(updatedAuthor) => setAuthor(updatedAuthor)}
-                    disabled={loading}
-                />
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Saving...' : (id ? 'Update' : 'Create')} Post
+                <button type="submit" className="submit-btn" disabled={loading}>
+                    {loading ? 'Saving...' : (id ? 'Update Post' : 'Create Post')}
                 </button>
             </form>
-            <div className="author-preview">
-                <h3>Author Preview</h3>
-                <div className="author-details">
-                    <img src="/path/to/logo.png" alt="Author Logo" className="author-logo" />
-                    <div>
-                        <h4>{author.name}</h4>
-                        <p className="author-email">{author.email}</p>
-                        <p className="author-bio">{author.bio}</p>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

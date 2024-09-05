@@ -24,6 +24,10 @@ const upload = multer({ storage: storage });
 router.post('/', upload.single('image'), async (req, res) => {
     try {
         const { title, content, category, author, subTopics } = req.body;
+        if (!title || !content || !category || !author || !subTopics) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
+
         const newPost = new Post({
             title,
             content,
@@ -32,10 +36,12 @@ router.post('/', upload.single('image'), async (req, res) => {
             subTopics: JSON.parse(subTopics),
             imageUrl: req.file ? `/uploads/${req.file.filename}` : null
         });
+
         const savedPost = await newPost.save();
         res.status(201).json(savedPost);
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        console.error('Error creating post:', err);
+        res.status(400).json({ message: 'Error creating post', error: err.message });
     }
 });
 
@@ -55,9 +61,12 @@ router.put('/:id', upload.single('image'), async (req, res) => {
             },
             { new: true }
         );
+        if (!updatedPost) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
         res.json(updatedPost);
     } catch (err) {
-        res.status(400).json({ message: err.message });
+        res.status(400).json({ message: 'Error updating post', error: err.message });
     }
 });
 
@@ -107,15 +116,12 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ message: 'Post not found' });
-        // Ensure author information is always present
-        const safePost = {
-            ...post.toObject(),
-            author: post.author || { name: 'Unknown', email: '', bio: '' }
-        };
-        res.json(safePost);
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+        res.json(post);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ message: 'Error fetching post', error: err.message });
     }
 });
 
